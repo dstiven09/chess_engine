@@ -10,14 +10,15 @@ body {
 
 #piece-selection {
     display: flex;
-    flex-wrap: wrap;
-    width: 300px; /* Adjust width if needed */
-    margin-bottom: 20px;
+    flex-direction: column;
+    width: 500px; /* Adjust width if needed */
+    margin-top: 20px;
+    margin-right: 80px;
 }
 
 #piece-selection .piece {
-    width: 60px; /* Adjust size if needed */
-    height: 60px; /* Adjust size if needed */
+    width: 70px; /* Adjust size if needed */
+    height: 70px; /* Adjust size if needed */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -28,21 +29,52 @@ body {
     background-size: cover; /* Ensure the images cover the whole area */
 }
 
-#chess-board {
-    display: grid;
-    grid-template-columns: repeat(8, 80px); /* Increased size */
-    grid-template-rows: repeat(8, 80px); /* Increased size */
-    border: 2px solid #000; /* Adjust border width if needed */
-    margin-top: 20px;
-    margin-right: 20px;
+.piece-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px; /* Space between rows */
 }
 
-.square {
-    width: 80px; /* Increased size */
-    height: 80px; /* Increased size */
+.piece-row .piece {
+    width: 60px; /* Adjust size if needed */
+    height: 60px; /* Adjust size if needed */
     display: flex;
     justify-content: center;
     align-items: center;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    border: 1px solid #000;
+    background-size: cover; /* Ensure the images cover the whole area */
+}
+
+#chess-board {
+    display: grid;
+    grid-template-columns: repeat(8, 100px);
+    grid-template-rows: repeat(8, 100px);
+    border: 2px solid #000;
+    margin-top: 20px;
+    margin-right: 80px;
+}
+
+.square {
+    position: relative; /* Ensure pseudo-element is positioned correctly */
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.square.highlight::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 5px solid white; /* White border for the frame */
+    box-sizing: border-box; /* Ensure the border is inside the square */
+    pointer-events: none; /* Ensure it doesn't interfere with mouse events */
 }
 
 .square:nth-child(even) {
@@ -85,6 +117,7 @@ button {
     padding: 10px;
     font-size: 16px;
     cursor: pointer;
+    margin-top: 10px; /* Add margin-top to create space between the button and the input above */
 }
 
 .sidebar {
@@ -96,6 +129,7 @@ button {
 .square.selected {
     background-color: #f0e68c; /* Light yellowish color */
 }
+
 .piece {
     cursor: pointer;
 }
