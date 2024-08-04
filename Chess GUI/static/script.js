@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const turn = turnSelect.value;
-        fen += ` ${turn} - - 0 1`;
+        fen += ` ${turn} KQkq - 0 1`;
         fenInput.value = fen;
         currentPosition = fen;
         currentTurn = turn;
