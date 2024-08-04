@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentPosition = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     let currentTurn = 'w';
+    let selectedSquare = null;
 
     const pieceImages = {
         'r': 'static/images/black_rook.png', 'n': 'static/images/black_knight.png',
@@ -58,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isNaN(char)) {
                     const piece = document.createElement('div');
                     piece.classList.add('piece');
+                    piece.setAttribute('draggable', true);
                     piece.style.backgroundImage = `url(${pieceImages[char]})`;
                     piece.style.backgroundSize = 'contain';
                     piece.style.backgroundRepeat = 'no-repeat';
@@ -72,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addDragAndDropHandlers();
+        addClickHandlers();
     }
 
     function addDragAndDropHandlers() {
@@ -89,31 +92,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function dragStart(e) {
-        e.dataTransfer.setData('text/plain', e.target.dataset.piece || e.target.parentElement.getAttribute('data-index'));
+        const piece = e.target;
+        const transparentImage = document.createElement('img');
+        transparentImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+        e.dataTransfer.setDragImage(transparentImage, 0, 0);
+        e.dataTransfer.effectAllowed = 'move';
+        const parentIndex = piece.parentElement.getAttribute('data-index');
+        const pieceData = piece.getAttribute('data-piece');
+        e.dataTransfer.setData('text/plain', parentIndex ? `${parentIndex},${pieceData}` : `selection,${pieceData}`);
     }
 
     function dragOver(e) {
         e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
     }
 
     function drop(e) {
         e.preventDefault();
-        const fromData = e.dataTransfer.getData('text/plain');
+        const data = e.dataTransfer.getData('text/plain').split(',');
+        const fromIndex = data[0];
+        const pieceData = data[1];
         const toIndex = e.target.getAttribute('data-index') || e.target.parentElement.getAttribute('data-index');
 
-        if (fromData !== null && toIndex !== null) {
-            const fromSquare = document.querySelector(`.square[data-index='${fromData}']`);
+        if (toIndex !== null) {
             const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
 
-            if (pieceImages[fromData]) {
-                toSquare.innerHTML = `<div class="piece" draggable="true" style="background-image: url(${pieceImages[fromData]})"></div>`;
-            } else if (fromSquare && fromSquare.firstChild) {
-                toSquare.innerHTML = fromSquare.innerHTML;
-                fromSquare.innerHTML = '';
+            if (fromIndex === 'selection') {
+                const piece = document.createElement('div');
+                piece.classList.add('piece');
+                piece.setAttribute('draggable', true);
+                piece.setAttribute('data-piece', pieceData);
+                piece.style.backgroundImage = `url(${pieceImages[pieceData]})`;
+                piece.style.backgroundSize = 'contain';
+                piece.style.backgroundRepeat = 'no-repeat';
+                piece.style.width = '100%';
+                piece.style.height = '100%';
+                toSquare.innerHTML = '';
+                toSquare.appendChild(piece);
+            } else {
+                const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+                if (fromSquare && fromSquare.firstChild) {
+                    toSquare.innerHTML = fromSquare.innerHTML;
+                    fromSquare.innerHTML = '';
+                }
             }
 
             addDragAndDropHandlers();
             updateFEN();
+        }
+    }
+
+    function addClickHandlers() {
+        const squares = document.querySelectorAll('.square');
+
+        squares.forEach(square => {
+            square.addEventListener('click', handleSquareClick);
+        });
+    }
+
+    function handleSquareClick(e) {
+        const square = e.currentTarget;
+        const squareIndex = square.getAttribute('data-index');
+
+        if (selectedSquare === null) {
+            if (square.firstChild) {
+                selectedSquare = square;
+                square.classList.add('selected');
+            }
+        } else {
+            if (square !== selectedSquare) {
+                square.innerHTML = selectedSquare.innerHTML;
+                selectedSquare.innerHTML = '';
+                selectedSquare.classList.remove('selected');
+                selectedSquare = null;
+                updateFEN();
+            } else {
+                selectedSquare.classList.remove('selected');
+                selectedSquare = null;
+            }
         }
     }
 
@@ -181,4 +237,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     createBoard();
     setPieces(currentPosition);
+    addDragAndDropHandlers();
 });
