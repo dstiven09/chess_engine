@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Board</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
+</head>
+<body>
+    <div id="piece-selection">
+        <div class="piece" draggable="true" data-piece="r" style="background-image: url('{{ url_for('static', filename='images/black_rook.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="n" style="background-image: url('{{ url_for('static', filename='images/black_knight.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="b" style="background-image: url('{{ url_for('static', filename='images/black_bishop.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="q" style="background-image: url('{{ url_for('static', filename='images/black_queen.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="k" style="background-image: url('{{ url_for('static', filename='images/black_king.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="p" style="background-image: url('{{ url_for('static', filename='images/black_pawn.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="R" style="background-image: url('{{ url_for('static', filename='images/white_rook.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="N" style="background-image: url('{{ url_for('static', filename='images/white_knight.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="B" style="background-image: url('{{ url_for('static', filename='images/white_bishop.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="Q" style="background-image: url('{{ url_for('static', filename='images/white_queen.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="K" style="background-image: url('{{ url_for('static', filename='images/white_king.png') }}')"></div>
+        <div class="piece" draggable="true" data-piece="P" style="background-image: url('{{ url_for('static', filename='images/white_pawn.png') }}')"></div>
+    </div>
+    <div class="container">
+        <div id="chess-board"></div>
+        <div class="sidebar">
+            <form id="fen-form">
+                <input type="text" id="fen-input" placeholder="Enter FEN" required>
+                <select id="turn-select">
+                    <option value="w">White to move</option>
+                    <option value="b">Black to move</option>
+                </select>
+                <label for="depth-input">Analysis Depth:</label>
+                <input type="number" id="depth-input" placeholder="Enter depth" min="1" value="15" required>
+                <label for="moves-input">Number of Moves:</label>
+                <input type="number" id="moves-input" placeholder="Enter number of moves" min="1" value="10" required>
+                <button type="submit">Analyze</button>
+            </form>
+            <div id="output"></div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
