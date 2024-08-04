@@ -58,16 +58,20 @@ document.addEventListener('DOMContentLoaded', () => {
             let col = 0;
             for (let char of rows[i]) {
                 if (isNaN(char)) {
-                    const piece = document.createElement('div');
-                    piece.classList.add('piece');
-                    piece.setAttribute('draggable', true);
-                    piece.style.backgroundImage = `url(${pieceImages[char]})`;
-                    piece.style.backgroundSize = 'contain';
-                    piece.style.backgroundRepeat = 'no-repeat';
-                    piece.style.width = '100%';
-                    piece.style.height = '100%';
-                    piece.setAttribute('data-piece', char);
-                    squares[i * 8 + col].appendChild(piece);
+                    if (pieceImages.hasOwnProperty(char)) { // Check if the character is a valid piece
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece');
+                        piece.setAttribute('draggable', 'true'); // Corrected line
+                        piece.style.backgroundImage = `url(${pieceImages[char]})`;
+                        piece.style.backgroundSize = 'contain';
+                        piece.style.backgroundRepeat = 'no-repeat';
+                        piece.style.width = '100%';
+                        piece.style.height = '100%';
+                        piece.setAttribute('data-piece', char);
+                        squares[i * 8 + col].appendChild(piece);
+                    } else {
+                        console.error(`Invalid piece character: ${char}`);
+                    }
                     col++;
                 } else {
                     col += parseInt(char);
@@ -124,44 +128,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Validate the move
             if (isValidMove(fromIndex, toIndex, pieceData)) {
-                if (fromSquare && fromSquare.firstChild) {
-                    // Handle en passant capture
-                    if (pieceData.toLowerCase() === 'p' && toIndex === enPassantTarget) {
-                        const capturedPawnIndex = toIndex + (pieceData === 'P' ? 8 : -8);
-                        const capturedPawnSquare = document.querySelector(`.square[data-index='${capturedPawnIndex}']`);
-                        capturedPawnSquare.innerHTML = '';
-                    }
+                movePiece(fromSquare, toSquare, pieceData);
 
-                    // Move the piece
-                    toSquare.innerHTML = fromSquare.innerHTML;
-                    fromSquare.innerHTML = '';
-                    addDragAndDropHandlers();
-                    updateFEN();
-
-                    // Remove the highlight class after drop
-                    toSquare.classList.remove('highlight');
-
-                    // Update en passant target
-                    enPassantTarget = null;
-                    if (pieceData.toLowerCase() === 'p' && Math.abs(fromIndex - toIndex) === 16) {
-                        enPassantTarget = (fromIndex + toIndex) / 2;
-                    }
-
-                    // Check for check or checkmate
-                    if (isInCheck(currentTurn)) {
-                        console.log('Check!');
-                        if (isCheckmate(currentTurn)) {
-                            console.log('Checkmate!');
-                            alert(`${currentTurn === 'w' ? 'Black' : 'White'} wins by checkmate!`);
-                        }
-                    }
-
-                    // Switch turn
-                    currentTurn = currentTurn === 'w' ? 'b' : 'w';
+                // Update en passant target
+                enPassantTarget = null;
+                if (pieceData.toLowerCase() === 'p' && Math.abs(fromIndex - toIndex) === 16) {
+                    enPassantTarget = (fromIndex + toIndex) / 2;
                 }
+
+                // Check for check or checkmate
+                if (isInCheck(currentTurn)) {
+                    console.log('Check!');
+                    if (isCheckmate(currentTurn)) {
+                        console.log('Checkmate!');
+                        alert(`${currentTurn === 'w' ? 'Black' : 'White'} wins by checkmate!`);
+                    }
+                }
+
+                // Switch turn
+                currentTurn = currentTurn === 'w' ? 'b' : 'w';
             } else {
                 console.log('Invalid move');
             }
+            // Remove the highlight class after drop
+            toSquare.classList.remove('highlight');
+        }
+    }
+
+    function movePiece(fromSquare, toSquare, pieceData) {
+        if (fromSquare && fromSquare.firstChild) {
+            // Handle en passant capture
+            if (pieceData.toLowerCase() === 'p' && toSquare.getAttribute('data-index') == enPassantTarget) {
+                const capturedPawnIndex = parseInt(toSquare.getAttribute('data-index')) + (pieceData === 'P' ? 8 : -8);
+                const capturedPawnSquare = document.querySelector(`.square[data-index='${capturedPawnIndex}']`);
+                capturedPawnSquare.innerHTML = '';
+            }
+
+            toSquare.innerHTML = fromSquare.innerHTML;
+            fromSquare.innerHTML = '';
+            addDragAndDropHandlers();
+            updateFEN();
+
             // Remove the highlight class after drop
             toSquare.classList.remove('highlight');
         }
@@ -178,8 +185,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const fromPiece = fromSquare && fromSquare.firstChild ? fromSquare.firstChild.getAttribute('data-piece') : null;
         const toPiece = toSquare && toSquare.firstChild ? toSquare.firstChild.getAttribute('data-piece') : null;
 
+        console.log(`Validating move from ${fromIndex} (${fromRow}, ${fromCol}) to ${toIndex} (${toRow}, ${toCol}) for piece ${piece}`);
+
         // Ensure the destination is empty or contains an opponent's piece
         if (toPiece && isSameColor(fromPiece, toPiece)) {
+            console.log('Invalid move: destination occupied by same color');
             return false;
         }
 
@@ -192,18 +202,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toCol === fromCol) {
                 // One square forward
                 if (toRow === fromRow + direction && !toSquare.firstChild) {
+                    console.log('Valid pawn move: one square forward');
                     return true;
                 }
                 // Two squares forward from the start position
                 if (fromRow === startRow && toRow === fromRow + 2 * direction && !toSquare.firstChild &&
                     !document.querySelector(`.square[data-index='${fromIndex + direction * 8}']`).firstChild) {
+                    console.log('Valid pawn move: two squares forward from start');
                     return true;
                 }
             }
             // Capturing diagonally
             if (Math.abs(toCol - fromCol) === 1 && toRow === fromRow + direction && (toSquare.firstChild || toIndex === enPassantTarget)) {
+                console.log('Valid pawn move: capturing diagonally');
                 return true;
             }
+
+            console.log('Invalid pawn move');
+            return false;
         }
 
         // Knight movement validation
@@ -212,11 +228,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 [-2, -1], [-2, 1], [-1, -2], [-1, 2],
                 [1, -2], [1, 2], [2, -1], [2, 1]
             ];
-            return knightMoves.some(([dx, dy]) => {
+            const validMove = knightMoves.some(([dx, dy]) => {
                 const newRow = fromRow + dx;
                 const newCol = fromCol + dy;
                 return newRow === toRow && newCol === toCol;
             });
+            console.log(`Knight move ${validMove ? 'valid' : 'invalid'}`);
+            return validMove;
         }
 
         // Bishop movement validation
@@ -267,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
 
-        // TODO: Add validation logic for other pieces
+        console.log('Invalid move: piece movement not defined');
         return false;
     }
 
@@ -290,7 +308,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function isSameColor(piece1, piece2) {
-        return (piece1 === piece1.toUpperCase()) === (piece2 === piece2.toUpperCase());
+        if (!piece1 || !piece2) return false;
+        return (piece1.toUpperCase() === piece1) === (piece2.toUpperCase() === piece2);
     }
 
     function isInCheck(turn) {
@@ -353,6 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleSquareClick(e) {
         const square = e.currentTarget;
+        const squareIndex = parseInt(square.getAttribute('data-index'));
 
         if (selectedSquare === null) {
             if (square.firstChild) {
@@ -360,16 +380,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 square.classList.add('selected');
             }
         } else {
-            if (square !== selectedSquare) {
-                square.innerHTML = selectedSquare.innerHTML;
-                selectedSquare.innerHTML = '';
-                selectedSquare.classList.remove('selected');
-                selectedSquare = null;
-                updateFEN();
-            } else {
-                selectedSquare.classList.remove('selected');
-                selectedSquare = null;
+            const fromIndex = parseInt(selectedSquare.getAttribute('data-index'));
+            const pieceData = selectedSquare.firstChild.getAttribute('data-piece');
+
+            // Ensure selectedSquare and selectedSquare.firstChild are not null
+            if (selectedSquare && selectedSquare.firstChild) {
+                // Validate the move
+                if (isValidMove(fromIndex, squareIndex, pieceData)) {
+                    movePiece(selectedSquare, square, pieceData);
+
+                    // Update en passant target
+                    enPassantTarget = null;
+                    if (pieceData.toLowerCase() === 'p' && Math.abs(fromIndex - squareIndex) === 16) {
+                        enPassantTarget = (fromIndex + squareIndex) / 2;
+                    }
+
+                    // Check for check or checkmate
+                    if (isInCheck(currentTurn)) {
+                        console.log('Check!');
+                        if (isCheckmate(currentTurn)) {
+                            console.log('Checkmate!');
+                            alert(`${currentTurn === 'w' ? 'Black' : 'White'} wins by checkmate!`);
+                        }
+                    }
+
+                    // Switch turn
+                    currentTurn = currentTurn === 'w' ? 'b' : 'w';
+                } else {
+                    console.log('Invalid move');
+                }
             }
+
+            selectedSquare.classList.remove('selected');
+            selectedSquare = null;
         }
     }
 
