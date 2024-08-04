@@ -88,6 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
         squares.forEach(square => {
             square.addEventListener('dragover', dragOver);
             square.addEventListener('drop', drop);
+            square.addEventListener('dragenter', dragEnter);
+            square.addEventListener('dragleave', dragLeave);
         });
     }
 
@@ -139,7 +141,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             addDragAndDropHandlers();
             updateFEN();
+
+            // Remove the highlight class after drop
+            toSquare.classList.remove('highlight');
         }
+    }
+
+    function dragEnter(e) {
+        e.preventDefault();
+        const square = e.currentTarget;
+        square.classList.add('highlight');
+    }
+
+    function dragLeave(e) {
+        const square = e.currentTarget;
+        square.classList.remove('highlight');
     }
 
     function addClickHandlers() {
@@ -152,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleSquareClick(e) {
         const square = e.currentTarget;
-        const squareIndex = square.getAttribute('data-index');
 
         if (selectedSquare === null) {
             if (square.firstChild) {
