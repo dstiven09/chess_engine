@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPosition = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     let currentTurn = 'w';
     let selectedSquare = null;
+    let enPassantTarget = null; // Track en passant target
 
     const pieceImages = {
         'r': 'static/images/black_rook.png', 'n': 'static/images/black_knight.png',
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     piece.style.backgroundRepeat = 'no-repeat';
                     piece.style.width = '100%';
                     piece.style.height = '100%';
+                    piece.setAttribute('data-piece', char);
                     squares[i * 8 + col].appendChild(piece);
                     col++;
                 } else {
@@ -112,39 +114,222 @@ document.addEventListener('DOMContentLoaded', () => {
     function drop(e) {
         e.preventDefault();
         const data = e.dataTransfer.getData('text/plain').split(',');
-        const fromIndex = data[0];
+        const fromIndex = parseInt(data[0]);
         const pieceData = data[1];
-        const toIndex = e.target.getAttribute('data-index') || e.target.parentElement.getAttribute('data-index');
+        const toIndex = parseInt(e.target.getAttribute('data-index') || e.target.parentElement.getAttribute('data-index'));
 
-        if (toIndex !== null) {
+        if (!isNaN(toIndex)) {
+            const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
             const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
 
-            if (fromIndex === 'selection') {
-                const piece = document.createElement('div');
-                piece.classList.add('piece');
-                piece.setAttribute('draggable', true);
-                piece.setAttribute('data-piece', pieceData);
-                piece.style.backgroundImage = `url(${pieceImages[pieceData]})`;
-                piece.style.backgroundSize = 'contain';
-                piece.style.backgroundRepeat = 'no-repeat';
-                piece.style.width = '100%';
-                piece.style.height = '100%';
-                toSquare.innerHTML = '';
-                toSquare.appendChild(piece);
-            } else {
-                const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+            // Validate the move
+            if (isValidMove(fromIndex, toIndex, pieceData)) {
                 if (fromSquare && fromSquare.firstChild) {
+                    // Handle en passant capture
+                    if (pieceData.toLowerCase() === 'p' && toIndex === enPassantTarget) {
+                        const capturedPawnIndex = toIndex + (pieceData === 'P' ? 8 : -8);
+                        const capturedPawnSquare = document.querySelector(`.square[data-index='${capturedPawnIndex}']`);
+                        capturedPawnSquare.innerHTML = '';
+                    }
+
+                    // Move the piece
                     toSquare.innerHTML = fromSquare.innerHTML;
                     fromSquare.innerHTML = '';
+                    addDragAndDropHandlers();
+                    updateFEN();
+
+                    // Remove the highlight class after drop
+                    toSquare.classList.remove('highlight');
+
+                    // Update en passant target
+                    enPassantTarget = null;
+                    if (pieceData.toLowerCase() === 'p' && Math.abs(fromIndex - toIndex) === 16) {
+                        enPassantTarget = (fromIndex + toIndex) / 2;
+                    }
+
+                    // Check for check or checkmate
+                    if (isInCheck(currentTurn)) {
+                        console.log('Check!');
+                        if (isCheckmate(currentTurn)) {
+                            console.log('Checkmate!');
+                            alert(`${currentTurn === 'w' ? 'Black' : 'White'} wins by checkmate!`);
+                        }
+                    }
+
+                    // Switch turn
+                    currentTurn = currentTurn === 'w' ? 'b' : 'w';
                 }
+            } else {
+                console.log('Invalid move');
             }
-
-            addDragAndDropHandlers();
-            updateFEN();
-
             // Remove the highlight class after drop
             toSquare.classList.remove('highlight');
         }
+    }
+
+    function isValidMove(fromIndex, toIndex, piece) {
+        const fromRow = Math.floor(fromIndex / 8);
+        const fromCol = fromIndex % 8;
+        const toRow = Math.floor(toIndex / 8);
+        const toCol = toIndex % 8;
+
+        const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+        const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
+        const fromPiece = fromSquare && fromSquare.firstChild ? fromSquare.firstChild.getAttribute('data-piece') : null;
+        const toPiece = toSquare && toSquare.firstChild ? toSquare.firstChild.getAttribute('data-piece') : null;
+
+        // Ensure the destination is empty or contains an opponent's piece
+        if (toPiece && isSameColor(fromPiece, toPiece)) {
+            return false;
+        }
+
+        // Pawn movement validation
+        if (piece.toLowerCase() === 'p') {
+            const direction = piece === 'P' ? -1 : 1; // White pawns move up, black pawns move down
+            const startRow = piece === 'P' ? 6 : 1; // Starting row for white and black pawns
+
+            // Moving forward
+            if (toCol === fromCol) {
+                // One square forward
+                if (toRow === fromRow + direction && !toSquare.firstChild) {
+                    return true;
+                }
+                // Two squares forward from the start position
+                if (fromRow === startRow && toRow === fromRow + 2 * direction && !toSquare.firstChild &&
+                    !document.querySelector(`.square[data-index='${fromIndex + direction * 8}']`).firstChild) {
+                    return true;
+                }
+            }
+            // Capturing diagonally
+            if (Math.abs(toCol - fromCol) === 1 && toRow === fromRow + direction && (toSquare.firstChild || toIndex === enPassantTarget)) {
+                return true;
+            }
+        }
+
+        // Knight movement validation
+        if (piece.toLowerCase() === 'n') {
+            const knightMoves = [
+                [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                [1, -2], [1, 2], [2, -1], [2, 1]
+            ];
+            return knightMoves.some(([dx, dy]) => {
+                const newRow = fromRow + dx;
+                const newCol = fromCol + dy;
+                return newRow === toRow && newCol === toCol;
+            });
+        }
+
+        // Bishop movement validation
+        if (piece.toLowerCase() === 'b') {
+            if (Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+        }
+
+        // Rook movement validation
+        if (piece.toLowerCase() === 'r') {
+            if (fromRow === toRow || fromCol === toCol) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+        }
+
+        // Queen movement validation
+        if (piece.toLowerCase() === 'q') {
+            if (fromRow === toRow || fromCol === toCol || Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+        }
+
+        // King movement validation
+        if (piece.toLowerCase() === 'k') {
+            const kingMoves = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1], [0, 1],
+                [1, -1], [1, 0], [1, 1]
+            ];
+            const validMove = kingMoves.some(([dx, dy]) => {
+                const newRow = fromRow + dx;
+                const newCol = fromCol + dy;
+                return newRow === toRow && newCol === toCol;
+            });
+
+            if (validMove) {
+                // Ensure the king is not moving into check
+                const originalToPiece = toSquare.innerHTML;
+                toSquare.innerHTML = fromSquare.innerHTML;
+                fromSquare.innerHTML = '';
+                const inCheck = isInCheck(currentTurn);
+                fromSquare.innerHTML = toSquare.innerHTML;
+                toSquare.innerHTML = originalToPiece;
+
+                return !inCheck;
+            }
+            return false;
+        }
+
+        // TODO: Add validation logic for other pieces
+        return false;
+    }
+
+    function isPathClear(fromRow, fromCol, toRow, toCol) {
+        const rowStep = toRow > fromRow ? 1 : toRow < fromRow ? -1 : 0;
+        const colStep = toCol > fromCol ? 1 : toCol < fromCol ? -1 : 0;
+
+        let row = fromRow + rowStep;
+        let col = fromCol + colStep;
+
+        while (row !== toRow || col !== toCol) {
+            if (document.querySelector(`.square[data-index='${row * 8 + col}']`).firstChild) {
+                return false;
+            }
+            row += rowStep;
+            col += colStep;
+        }
+
+        return true;
+    }
+
+    function isSameColor(piece1, piece2) {
+        return (piece1 === piece1.toUpperCase()) === (piece2 === piece2.toUpperCase());
+    }
+
+    function isInCheck(turn) {
+        const kingPiece = turn === 'w' ? 'K' : 'k';
+        const kingSquare = [...document.querySelectorAll('.square')].find(square => square.firstChild && square.firstChild.getAttribute('data-piece') === kingPiece);
+        if (!kingSquare) return false;
+        const kingIndex = parseInt(kingSquare.getAttribute('data-index'));
+        const opponentTurn = turn === 'w' ? 'b' : 'w';
+        const opponentPieces = [...document.querySelectorAll('.piece')].filter(piece => piece.getAttribute('data-piece').toLowerCase() === piece.getAttribute('data-piece').toLowerCase() && (turn === 'w' ? piece.getAttribute('data-piece') === piece.getAttribute('data-piece').toLowerCase() : piece.getAttribute('data-piece') === piece.getAttribute('data-piece').toUpperCase()));
+
+        return opponentPieces.some(piece => {
+            const fromIndex = parseInt(piece.parentElement.getAttribute('data-index'));
+            const pieceData = piece.getAttribute('data-piece');
+            return isValidMove(fromIndex, kingIndex, pieceData);
+        });
+    }
+
+    function isCheckmate(turn) {
+        const pieces = [...document.querySelectorAll('.piece')].filter(piece => piece.getAttribute('data-piece').toLowerCase() === piece.getAttribute('data-piece').toLowerCase() && (turn === 'w' ? piece.getAttribute('data-piece') === piece.getAttribute('data-piece').toUpperCase() : piece.getAttribute('data-piece') === piece.getAttribute('data-piece').toLowerCase()));
+        return !pieces.some(piece => {
+            const fromIndex = parseInt(piece.parentElement.getAttribute('data-index'));
+            for (let toIndex = 0; toIndex < 64; toIndex++) {
+                if (isValidMove(fromIndex, toIndex, piece.getAttribute('data-piece'))) {
+                    const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+                    const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
+                    const originalToPiece = toSquare.innerHTML;
+                    toSquare.innerHTML = fromSquare.innerHTML;
+                    fromSquare.innerHTML = '';
+                    const inCheck = isInCheck(turn);
+                    fromSquare.innerHTML = toSquare.innerHTML;
+                    toSquare.innerHTML = originalToPiece;
+
+                    if (!inCheck) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
     }
 
     function dragEnter(e) {

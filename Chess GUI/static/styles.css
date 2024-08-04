@@ -77,6 +77,15 @@ body {
     pointer-events: none; /* Ensure it doesn't interfere with mouse events */
 }
 
+.square::after { //styles the indeces
+    content: attr(data-index);
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.7);
+}
+
 .square:nth-child(even) {
     background-color: #769656;
 }
