@@ -92,3 +92,14 @@ button {
     flex-direction: column;
     margin-left: 20px;
 }
+
+.square.selected {
+    background-color: #f0e68c; /* Light yellowish color */
+}
+.piece {
+    cursor: pointer;
+}
+
+.piece:active {
+    cursor: grabbing;
+}
