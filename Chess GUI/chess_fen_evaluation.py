@@ -3,6 +3,7 @@ from stockfish import Stockfish
 from decorators import timing_decorator
 import concurrent.futures
 
+
 def evaluate_move(stockfish_path, fen, move, depth):
     stockfish = Stockfish(path=stockfish_path)
     stockfish.set_depth(depth)
@@ -21,8 +22,9 @@ def evaluate_move(stockfish_path, fen, move, depth):
 
     return board.san(move), eval_value
 
+
 @timing_decorator
-def analyze_fen(fen, stockfish_path, top_n=5, depth=15):
+def analyze_fen(fen, stockfish_path, top_n: int = 10, depth: int = 15):
     stockfish = Stockfish(path=stockfish_path)
     stockfish.set_depth(depth)
 
