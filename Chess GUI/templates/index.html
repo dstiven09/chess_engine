@@ -42,7 +42,11 @@
                 <input type="number" id="moves-input" placeholder="Enter number of moves" min="1" value="10" required>
                 <button type="submit">Analyze</button>
             </form>
+            <button id="clear-board">Clear Board</button>
+            <button id="starting-position">Starting Position</button>
             <div id="output"></div>
+            <label for="setup-mode">Setup Mode</label>
+            <input type="checkbox" id="setup-mode">
         </div>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
