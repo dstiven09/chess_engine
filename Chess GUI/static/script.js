@@ -174,20 +174,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function movePiece(fromSquare, toSquare, pieceData) {
         if (fromSquare && fromSquare.firstChild) {
+            const fromIndex = parseInt(fromSquare.getAttribute('data-index'));
+            const toIndex = parseInt(toSquare.getAttribute('data-index'));
+
             // Handle en passant capture
-            if (pieceData.toLowerCase() === 'p' && toSquare.getAttribute('data-index') == enPassantTarget) {
-                const capturedPawnIndex = parseInt(toSquare.getAttribute('data-index')) + (pieceData === 'P' ? 8 : -8);
+            if (pieceData.toLowerCase() === 'p' && toIndex == enPassantTarget) {
+                const capturedPawnIndex = toIndex + (pieceData === 'P' ? 8 : -8);
                 const capturedPawnSquare = document.querySelector(`.square[data-index='${capturedPawnIndex}']`);
                 capturedPawnSquare.innerHTML = '';
+            }
+
+            // Handle castling
+            if (pieceData.toLowerCase() === 'k' && Math.abs(fromIndex - toIndex) === 2) {
+                const rookFromIndex = toIndex > fromIndex ? fromIndex + 3 : fromIndex - 4;
+                const rookToIndex = toIndex > fromIndex ? fromIndex + 1 : fromIndex - 1;
+                const rookFromSquare = document.querySelector(`.square[data-index='${rookFromIndex}']`);
+                const rookToSquare = document.querySelector(`.square[data-index='${rookToIndex}']`);
+                rookToSquare.innerHTML = rookFromSquare.innerHTML;
+                rookFromSquare.innerHTML = '';
             }
 
             toSquare.innerHTML = fromSquare.innerHTML;
             fromSquare.innerHTML = '';
             addDragAndDropHandlers();
+            addClickHandlers();
             updateFEN();
 
             // Remove the highlight class after drop
             toSquare.classList.remove('highlight');
+
+            // Update king and rook move flags
+            if (pieceData === 'K') {
+                hasWhiteKingMoved = true;
+            }
+            if (pieceData === 'k') {
+                hasBlackKingMoved = true;
+            }
+            if (pieceData === 'R' && fromIndex === 63) {
+                hasWhiteRookKingSideMoved = true;
+            }
+            if (pieceData === 'R' && fromIndex === 56) {
+                hasWhiteRookQueenSideMoved = true;
+            }
+            if (pieceData === 'r' && fromIndex === 7) {
+                hasBlackRookKingSideMoved = true;
+            }
+            if (pieceData === 'r' && fromIndex === 0) {
+                hasBlackRookQueenSideMoved = true;
+            }
         }
     }
 
@@ -215,6 +249,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toPiece && isSameColor(fromPiece, toPiece)) {
             console.log('Invalid move: destination occupied by same color');
             return false;
+        }
+
+        // Castling validation
+        if (piece.toLowerCase() === 'k' && Math.abs(fromCol - toCol) === 2) {
+            if (piece === 'K') {
+                // White king castling
+                if (!hasWhiteKingMoved && !isInCheck(currentTurn) &&
+                    ((toCol > fromCol && !hasWhiteRookKingSideMoved && !document.querySelector(`.square[data-index='${fromIndex + 1}']`).firstChild && !document.querySelector(`.square[data-index='${fromIndex + 2}']`).firstChild && !isInCheckAfterMove(fromIndex, fromIndex + 1) && !isInCheckAfterMove(fromIndex, fromIndex + 2)) ||
+                    (toCol < fromCol && !hasWhiteRookQueenSideMoved && !document.querySelector(`.square[data-index='${fromIndex - 1}']`).firstChild && !document.querySelector(`.square[data-index='${fromIndex - 2}']`).firstChild && !document.querySelector(`.square[data-index='${fromIndex - 3}']`).firstChild && !isInCheckAfterMove(fromIndex, fromIndex - 1) && !isInCheckAfterMove(fromIndex, fromIndex - 2)))) {
+                    return true;
+                }
+            } else if (piece === 'k') {
+                // Black king castling
+                if (!hasBlackKingMoved && !isInCheck(currentTurn) &&
+                    ((toCol > fromCol && !hasBlackRookKingSideMoved && !document.querySelector(`.square[data-index='${fromIndex + 1}']`).firstChild && !document.querySelector(`.square[data-index='${fromIndex + 2}']`).firstChild && !isInCheckAfterMove(fromIndex, fromIndex + 1) && !isInCheckAfterMove(fromIndex, fromIndex + 2)) ||
+                    (toCol < fromCol && !hasBlackRookQueenSideMoved && !document.querySelector(`.square[data-index='${fromIndex - 1}']`).firstChild && !document.querySelector(`.square[data-index='${fromIndex - 2}']`).firstChild && !document.querySelector(`.square[data-index='${fromIndex - 3}']`).firstChild && !isInCheckAfterMove(fromIndex, fromIndex - 1) && !isInCheckAfterMove(fromIndex, fromIndex - 2)))) {
+                    return true;
+                }
+            }
         }
 
         // Pawn movement validation
@@ -313,6 +366,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
+    function isInCheckAfterMove(fromIndex, toIndex) {
+        const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+        const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
+        const originalToPiece = toSquare.innerHTML;
+
+        // Perform the move
+        toSquare.innerHTML = fromSquare.innerHTML;
+        fromSquare.innerHTML = '';
+
+        // Check if the current player's king is in check after the move
+        const inCheck = isInCheck(currentTurn);
+
+        // Revert the move
+        fromSquare.innerHTML = toSquare.innerHTML;
+        toSquare.innerHTML = originalToPiece;
+
+        return inCheck;
+    }
+
     function isPathClear(fromRow, fromCol, toRow, toCol) {
         const rowStep = toRow > fromRow ? 1 : toRow < fromRow ? -1 : 0;
         const colStep = toCol > fromCol ? 1 : toCol < fromCol ? -1 : 0;
@@ -339,26 +411,112 @@ document.addEventListener('DOMContentLoaded', () => {
     function isInCheck(turn) {
         const kingPiece = turn === 'w' ? 'K' : 'k';
         const kingSquare = [...document.querySelectorAll('.square')].find(square => square.firstChild && square.firstChild.getAttribute('data-piece') === kingPiece);
-        if (!kingSquare) return false;
+        if (!kingSquare) return false; //There is no king???
         const kingIndex = parseInt(kingSquare.getAttribute('data-index'));
-        const opponentTurn = turn === 'w' ? 'b' : 'w';
+
         const opponentPieces = [...document.querySelectorAll('.piece')].filter(piece => {
             const pieceData = piece.getAttribute('data-piece');
             const pieceColor = pieceData === pieceData.toUpperCase() ? 'w' : 'b';
-            return pieceColor !== turn; // Opponent's pieces are of the opposite color
+            return pieceColor !== turn;
         });
 
-        const originalTurn = currentTurn;
-        currentTurn = turn === 'w' ? 'b' : 'w'; // Temporarily switch the turn
-
-        const inCheck = opponentPieces.some(piece => {
+        return opponentPieces.some(piece => {
             const fromIndex = parseInt(piece.parentElement.getAttribute('data-index'));
             const pieceData = piece.getAttribute('data-piece');
-            return isValidMove(fromIndex, kingIndex, pieceData);
+            return isValidMoveWithoutCheck(fromIndex, kingIndex, pieceData);
         });
+    }
 
-        currentTurn = originalTurn; // Restore the original turn
-        return inCheck;
+    function isValidMoveWithoutCheck(fromIndex, toIndex, piece) {
+        const fromRow = Math.floor(fromIndex / 8);
+        const fromCol = fromIndex % 8;
+        const toRow = Math.floor(toIndex / 8);
+        const toCol = toIndex % 8;
+
+        const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+        const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
+        const fromPiece = fromSquare && fromSquare.firstChild ? fromSquare.firstChild.getAttribute('data-piece') : null;
+        const toPiece = toSquare && toSquare.firstChild ? toSquare.firstChild.getAttribute('data-piece') : null;
+
+        // Ensure the destination is empty or contains an opponent's piece
+        if (toPiece && isSameColor(fromPiece, toPiece)) {
+            return false;
+        }
+
+        // Pawn movement validation
+        if (piece.toLowerCase() === 'p') {
+            const direction = piece === 'P' ? -1 : 1; // White pawns move up, black pawns move down
+            const startRow = piece === 'P' ? 6 : 1; // Starting row for white and black pawns
+
+            // Moving forward
+            if (toCol === fromCol) {
+                // One square forward
+                if (toRow === fromRow + direction && !toSquare.firstChild) {
+                    return true;
+                }
+                // Two squares forward from the start position
+                if (fromRow === startRow && toRow === fromRow + 2 * direction && !toSquare.firstChild &&
+                    !document.querySelector(`.square[data-index='${fromIndex + direction * 8}']`).firstChild) {
+                    return true;
+                }
+            }
+            // Capturing diagonally
+            if (Math.abs(toCol - fromCol) === 1 && toRow === fromRow + direction && (toSquare.firstChild || toIndex === enPassantTarget)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // Knight movement validation
+        if (piece.toLowerCase() === 'n') {
+            const knightMoves = [
+                [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                [1, -2], [1, 2], [2, -1], [2, 1]
+            ];
+            return knightMoves.some(([dx, dy]) => {
+                const newRow = fromRow + dx;
+                const newCol = fromCol + dy;
+                return newRow === toRow && newCol === toCol;
+            });
+        }
+
+        // Bishop movement validation
+        if (piece.toLowerCase() === 'b') {
+            if (Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+        }
+
+        // Rook movement validation
+        if (piece.toLowerCase() === 'r') {
+            if (fromRow === toRow || fromCol === toCol) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+        }
+
+        // Queen movement validation
+        if (piece.toLowerCase() === 'q') {
+            if (fromRow === toRow || fromCol === toCol || Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+        }
+
+        // King movement validation
+        if (piece.toLowerCase() === 'k') {
+            const kingMoves = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1], [0, 1],
+                [1, -1], [1, 0], [1, 1]
+            ];
+            return kingMoves.some(([dx, dy]) => {
+                const newRow = fromRow + dx;
+                const newCol = fromCol + dy;
+                return newRow === toRow && newCol === toCol;
+            });
+        }
+
+        return false;
     }
 
     function wouldLeaveKingInCheck(fromIndex, toIndex, piece) {
