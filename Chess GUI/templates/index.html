@@ -26,12 +26,16 @@
             <div class="piece" draggable="true" data-piece="K" style="background-image: url('{{ url_for('static', filename='images/white_king.png') }}')"></div>
             <div class="piece" draggable="true" data-piece="P" style="background-image: url('{{ url_for('static', filename='images/white_pawn.png') }}')"></div>
         </div>
+        <div>
+            <label for="setup-mode">Setup Mode</label>
+            <input type="checkbox" id="setup-mode">
+        </div>
     </div>
     <div class="container">
         <div id="chess-board"></div>
         <div class="sidebar">
             <form id="fen-form">
-                <input type="text" id="fen-input" placeholder="Enter FEN" required>
+                <input type="text" id="fen-input" class="fen-input" placeholder="Enter FEN" required>
                 <select id="turn-select">
                     <option value="w">White to move</option>
                     <option value="b">Black to move</option>
@@ -45,8 +49,7 @@
             <button id="clear-board">Clear Board</button>
             <button id="starting-position">Starting Position</button>
             <div id="output"></div>
-            <label for="setup-mode">Setup Mode</label>
-            <input type="checkbox" id="setup-mode">
+            <div id="pgn-output"></div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
