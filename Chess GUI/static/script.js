@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTurn = 'w';
     let selectedSquare = null;
     let enPassantTarget = null; // Track en passant target
+    let hasWhiteKingMoved = false;
+    let hasWhiteRookKingSideMoved = false;
+    let hasWhiteRookQueenSideMoved = false;
+    let hasBlackKingMoved = false;
+    let hasBlackRookKingSideMoved = false;
+    let hasBlackRookQueenSideMoved = false;
 
     const pieceImages = {
         'r': 'static/images/black_rook.png', 'n': 'static/images/black_knight.png',
@@ -101,12 +107,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function dragStart(e) {
         const piece = e.target;
+        const pieceData = piece.getAttribute('data-piece');
+        const pieceColor = pieceData === pieceData.toUpperCase() ? 'w' : 'b';
+
+        // Ensure the piece matches the current turn
+        if (pieceColor !== currentTurn) {
+            e.preventDefault();
+            return;
+        }
+
         const transparentImage = document.createElement('img');
         transparentImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
         e.dataTransfer.setDragImage(transparentImage, 0, 0);
         e.dataTransfer.effectAllowed = 'move';
         const parentIndex = piece.parentElement.getAttribute('data-index');
-        const pieceData = piece.getAttribute('data-piece');
         e.dataTransfer.setData('text/plain', parentIndex ? `${parentIndex},${pieceData}` : `selection,${pieceData}`);
     }
 
@@ -147,12 +161,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Switch turn
                 currentTurn = currentTurn === 'w' ? 'b' : 'w';
+                updateFEN();
             } else {
                 console.log('Invalid move');
             }
             // Remove the highlight class after drop
             toSquare.classList.remove('highlight');
         }
+        addDragAndDropHandlers();
+        addClickHandlers();
     }
 
     function movePiece(fromSquare, toSquare, pieceData) {
@@ -187,6 +204,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log(`Validating move from ${fromIndex} (${fromRow}, ${fromCol}) to ${toIndex} (${toRow}, ${toCol}) for piece ${piece}`);
 
+        // Ensure the piece matches the current turn
+        const pieceColor = piece === piece.toUpperCase() ? 'w' : 'b';
+        if (pieceColor !== currentTurn) {
+            console.log('Invalid move: wrong turn');
+            return false;
+        }
+
         // Ensure the destination is empty or contains an opponent's piece
         if (toPiece && isSameColor(fromPiece, toPiece)) {
             console.log('Invalid move: destination occupied by same color');
@@ -203,19 +227,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // One square forward
                 if (toRow === fromRow + direction && !toSquare.firstChild) {
                     console.log('Valid pawn move: one square forward');
-                    return true;
+                    return !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
                 }
                 // Two squares forward from the start position
                 if (fromRow === startRow && toRow === fromRow + 2 * direction && !toSquare.firstChild &&
                     !document.querySelector(`.square[data-index='${fromIndex + direction * 8}']`).firstChild) {
                     console.log('Valid pawn move: two squares forward from start');
-                    return true;
+                    return !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
                 }
             }
             // Capturing diagonally
             if (Math.abs(toCol - fromCol) === 1 && toRow === fromRow + direction && (toSquare.firstChild || toIndex === enPassantTarget)) {
                 console.log('Valid pawn move: capturing diagonally');
-                return true;
+                return !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
             }
 
             console.log('Invalid pawn move');
@@ -234,27 +258,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 return newRow === toRow && newCol === toCol;
             });
             console.log(`Knight move ${validMove ? 'valid' : 'invalid'}`);
-            return validMove;
+            return validMove && !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
         }
 
         // Bishop movement validation
         if (piece.toLowerCase() === 'b') {
             if (Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)) {
-                return isPathClear(fromRow, fromCol, toRow, toCol);
+                return isPathClear(fromRow, fromCol, toRow, toCol) && !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
             }
         }
 
         // Rook movement validation
         if (piece.toLowerCase() === 'r') {
             if (fromRow === toRow || fromCol === toCol) {
-                return isPathClear(fromRow, fromCol, toRow, toCol);
+                return isPathClear(fromRow, fromCol, toRow, toCol) && !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
             }
         }
 
         // Queen movement validation
         if (piece.toLowerCase() === 'q') {
             if (fromRow === toRow || fromCol === toCol || Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)) {
-                return isPathClear(fromRow, fromCol, toRow, toCol);
+                return isPathClear(fromRow, fromCol, toRow, toCol) && !wouldLeaveKingInCheck(fromIndex, toIndex, piece);
             }
         }
 
@@ -318,13 +342,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!kingSquare) return false;
         const kingIndex = parseInt(kingSquare.getAttribute('data-index'));
         const opponentTurn = turn === 'w' ? 'b' : 'w';
-        const opponentPieces = [...document.querySelectorAll('.piece')].filter(piece => piece.getAttribute('data-piece').toLowerCase() === piece.getAttribute('data-piece').toLowerCase() && (turn === 'w' ? piece.getAttribute('data-piece') === piece.getAttribute('data-piece').toLowerCase() : piece.getAttribute('data-piece') === piece.getAttribute('data-piece').toUpperCase()));
+        const opponentPieces = [...document.querySelectorAll('.piece')].filter(piece => {
+            const pieceData = piece.getAttribute('data-piece');
+            const pieceColor = pieceData === pieceData.toUpperCase() ? 'w' : 'b';
+            return pieceColor !== turn; // Opponent's pieces are of the opposite color
+        });
 
-        return opponentPieces.some(piece => {
+        const originalTurn = currentTurn;
+        currentTurn = turn === 'w' ? 'b' : 'w'; // Temporarily switch the turn
+
+        const inCheck = opponentPieces.some(piece => {
             const fromIndex = parseInt(piece.parentElement.getAttribute('data-index'));
             const pieceData = piece.getAttribute('data-piece');
             return isValidMove(fromIndex, kingIndex, pieceData);
         });
+
+        currentTurn = originalTurn; // Restore the original turn
+        return inCheck;
+    }
+
+    function wouldLeaveKingInCheck(fromIndex, toIndex, piece) {
+        // Save the current board state
+        const fromSquare = document.querySelector(`.square[data-index='${fromIndex}']`);
+        const toSquare = document.querySelector(`.square[data-index='${toIndex}']`);
+        const originalToPiece = toSquare.innerHTML;
+
+        // Perform the move
+        toSquare.innerHTML = fromSquare.innerHTML;
+        fromSquare.innerHTML = '';
+
+        // Check if the current player's king is in check after the move
+        const inCheck = isInCheck(currentTurn);
+
+        // Revert the move
+        fromSquare.innerHTML = toSquare.innerHTML;
+        toSquare.innerHTML = originalToPiece;
+
+        return inCheck;
     }
 
     function isCheckmate(turn) {
@@ -376,6 +430,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (selectedSquare === null) {
             if (square.firstChild) {
+                const pieceData = square.firstChild.getAttribute('data-piece');
+                const pieceColor = pieceData === pieceData.toUpperCase() ? 'w' : 'b';
+
+                // Ensure the piece matches the current turn
+                if (pieceColor !== currentTurn) {
+                    return;
+                }
+
                 selectedSquare = square;
                 square.classList.add('selected');
             }
@@ -406,6 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Switch turn
                     currentTurn = currentTurn === 'w' ? 'b' : 'w';
+                    updateFEN();
                 } else {
                     console.log('Invalid move');
                 }
@@ -446,11 +509,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const turn = turnSelect.value;
+        const turn = currentTurn;
         fen += ` ${turn} KQkq - 0 1`;
         fenInput.value = fen;
         currentPosition = fen;
-        currentTurn = turn;
     }
 
     fenForm.addEventListener('submit', (e) => {
