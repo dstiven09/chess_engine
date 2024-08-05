@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentPosition = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     let currentTurn = 'w';
+    let moves = [];
     let selectedSquare = null;
     let enPassantTarget = null; // Track en passant target
     let hasWhiteKingMoved = false;
@@ -117,20 +118,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function dragStart(e) {
         const piece = e.target;
         const pieceData = piece.getAttribute('data-piece');
+        const pieceColor = pieceData === pieceData.toUpperCase() ? 'w' : 'b';
 
-        if (!setupMode) {
-            const pieceColor = pieceData === pieceData.toUpperCase() ? 'w' : 'b';
-
-            // Ensure the piece matches the current turn
-            if (pieceColor !== currentTurn) {
-                e.preventDefault();
-                return;
-            }
+        // Ensure the piece matches the current turn in normal mode
+        if (!setupMode && pieceColor !== currentTurn) {
+            e.preventDefault();
+            return;
         }
 
-        const transparentImage = document.createElement('img');
-        transparentImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-        e.dataTransfer.setDragImage(transparentImage, 0, 0);
+        // Clone the piece element and style it for the drag image
+        const clonedPiece = piece.cloneNode(true);
+        clonedPiece.style.width = piece.clientWidth + 'px';
+        clonedPiece.style.height = piece.clientHeight + 'px';
+        clonedPiece.style.opacity = '1'; // Ensure the opacity is fully opaque
+        //clonedPiece.style.backgroundColor = 'transparent'; // Ensure no background color
+        clonedPiece.style.position = 'absolute';
+        clonedPiece.style.top = '-9999px';
+        clonedPiece.style.left = '-9999px';
+        clonedPiece.style.zIndex = '1000'; // Ensure it appears above other elements
+        document.body.appendChild(clonedPiece);
+
+        // Set the cloned piece as the drag image
+        e.dataTransfer.setDragImage(clonedPiece, piece.clientWidth / 2, piece.clientHeight / 2);
+        setTimeout(() => document.body.removeChild(clonedPiece), 0); // Remove the clone after setting the drag image
+
         e.dataTransfer.effectAllowed = 'move';
         const parentIndex = piece.parentElement.getAttribute('data-index');
         e.dataTransfer.setData('text/plain', parentIndex ? `${parentIndex},${pieceData}` : `selection,${pieceData}`);
@@ -210,6 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             alert(`${currentTurn === 'w' ? 'Black' : 'White'} wins by checkmate!`);
                         }
                     }
+
+                    document.getElementById('pgn-output').textContent = movesToPGN();
+
                 } else {
                     console.log('Invalid move');
                 }
@@ -253,6 +267,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove the highlight class after drop
             toSquare.classList.remove('highlight');
 
+            const move = {
+                piece: pieceData,
+                from: fromIndex,
+                to: toIndex
+            };
+            moves.push(move);
+
             // Update king and rook move flags
             if (pieceData === 'K') {
                 hasWhiteKingMoved = true;
@@ -272,6 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pieceData === 'r' && fromIndex === 0) {
                 hasBlackRookQueenSideMoved = true;
             }
+
+            // Update PGN display
+            document.getElementById('pgn-output').textContent = movesToPGN();
         }
     }
 
@@ -690,6 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Check if opponent is in checkmate
                         currentTurn = currentTurn === 'w' ? 'b' : 'w';
+
                         if (isInCheck(currentTurn)) {
                             console.log('Check!');
                             if (isCheckmate(currentTurn)) {
@@ -697,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 alert(`${currentTurn === 'w' ? 'Black' : 'White'} wins by checkmate!`);
                             }
                         }
+                        document.getElementById('pgn-output').textContent = movesToPGN();
                     } else {
                         console.log('Invalid move');
                     }
@@ -773,6 +799,38 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${file}${rank}`;
     }
 
+    function movesToPGN() {
+        let pgn = '';
+        let moveNumber = 1;
+
+        for (let i = 0; i < moves.length; i++) {
+            const move = moves[i];
+            const piece = move.piece.toUpperCase() !== 'P' ? move.piece.toUpperCase() : '';
+            const fromSquare = indexToSquare(move.from);
+            const toSquare = indexToSquare(move.to);
+
+            if (i % 2 === 0) {
+                pgn += `${moveNumber}. `;
+            }
+
+            pgn += `${piece}${toSquare} `;
+
+            if (i % 2 === 1) {
+                pgn += '\n';
+                moveNumber++;
+            }
+        }
+
+        return pgn.trim();
+    }
+
+    function indexToSquare(index) {
+        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        const rank = 8 - Math.floor(index / 8);
+        const file = files[index % 8];
+        return `${file}${rank}`;
+    }
+
     function clearBoard() {
         const squares = board.getElementsByClassName('square');
         for (let square of squares) {
@@ -785,12 +843,31 @@ document.addEventListener('DOMContentLoaded', () => {
     function setStartingPosition() {
         currentPosition = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
         setPieces(currentPosition);
+        currentTurn = "w"
+        hasWhiteKingMoved = false;
+        hasWhiteRookKingSideMoved = false;
+        hasWhiteRookQueenSideMoved = false;
+        hasBlackKingMoved = false;
+        hasBlackRookKingSideMoved = false;
+        hasBlackRookQueenSideMoved = false;
+        enPassantTarget = null;
+        moves = [];
+        document.getElementById('pgn-output').textContent = '';
         updateFEN();
     }
 
     clearBoardButton.addEventListener('click', clearBoard);
 
     startingPositionButton.addEventListener('click', setStartingPosition);
+
+    setupModeCheckbox.addEventListener('change', (e) => {
+        setupMode = e.target.checked;
+        console.log('Setup mode:', setupMode);
+        if (setupMode) {
+            moves = [];
+            document.getElementById('pgn-output').textContent = '';
+        }
+    });
 
     fenForm.addEventListener('submit', (e) => {
         e.preventDefault();
