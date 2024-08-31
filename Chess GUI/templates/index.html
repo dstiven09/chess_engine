@@ -30,20 +30,51 @@
             <label for="setup-mode">Setup Mode</label>
             <input type="checkbox" id="setup-mode">
         </div>
+
+        <!-- Castling Rights Toggles -->
+        <div id="castling-toggles">
+            <h3>Castling Rights</h3>
+            <label for="hasWhiteKingMovedToggle">White King Moved</label>
+            <input type="checkbox" id="hasWhiteKingMovedToggle">
+
+            <label for="hasWhiteRookKingSideMovedToggle">White Kingside Rook Moved</label>
+            <input type="checkbox" id="hasWhiteRookKingSideMovedToggle">
+
+            <label for="hasWhiteRookQueenSideMovedToggle">White Queenside Rook Moved</label>
+            <input type="checkbox" id="hasWhiteRookQueenSideMovedToggle">
+
+            <label for="hasBlackKingMovedToggle">Black King Moved</label>
+            <input type="checkbox" id="hasBlackKingMovedToggle">
+
+            <label for="hasBlackRookKingSideMovedToggle">Black Kingside Rook Moved</label>
+            <input type="checkbox" id="hasBlackRookKingSideMovedToggle">
+
+            <label for="hasBlackRookQueenSideMovedToggle">Black Queenside Rook Moved</label>
+            <input type="checkbox" id="hasBlackRookQueenSideMovedToggle">
+        </div>
+
+        <!-- FEN Input Field moved under Castling Rights -->
+        <div id="fen-input-container">
+            <label for="fen-input">FEN:</label>
+            <input type="text" id="fen-input" class="fen-input" placeholder="Enter FEN" required>
+        </div>
     </div>
+
     <div class="container">
-        <div id="chess-board"></div>
+        <div id="chess-board-container">
+            <div id="chess-board"></div>
+        </div>
         <div class="sidebar">
             <form id="fen-form">
-                <input type="text" id="fen-input" class="fen-input" placeholder="Enter FEN" required>
+                <!-- FEN input removed from here -->
                 <select id="turn-select">
                     <option value="w">White to move</option>
                     <option value="b">Black to move</option>
                 </select>
                 <label for="depth-input">Analysis Depth:</label>
-                <input type="number" id="depth-input" placeholder="Enter depth" min="1" value="12" required>
+                <input type="number" id="depth-input" placeholder="Enter depth" min="1" value="23" required>
                 <label for="moves-input">Number of Moves:</label>
-                <input type="number" id="moves-input" placeholder="Enter number of moves" min="1" value="10" required>
+                <input type="number" id="moves-input" placeholder="Enter number of moves" min="1" value="15" required>
                 <button type="submit">Analyze</button>
             </form>
             <button id="clear-board">Clear Board</button>
