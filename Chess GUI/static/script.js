@@ -967,6 +967,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Event listener for FEN input to update the board when the FEN string changes
+    fenInput.addEventListener('input', (e) => {
+        if (setupMode) {
+            const fen = e.target.value;
+            setPieces(fen); // Update the board based on the new FEN string
+        }
+    });
+
     createBoard();
     setPieces(currentPosition);
     addDragAndDropHandlers();
