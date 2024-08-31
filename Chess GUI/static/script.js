@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBoardButton = document.getElementById('clear-board');
     const startingPositionButton = document.getElementById('starting-position');
 
+    // New elements for castling toggles
+    const hasWhiteKingMovedToggle = document.getElementById('hasWhiteKingMovedToggle');
+    const hasWhiteRookKingSideMovedToggle = document.getElementById('hasWhiteRookKingSideMovedToggle');
+    const hasWhiteRookQueenSideMovedToggle = document.getElementById('hasWhiteRookQueenSideMovedToggle');
+    const hasBlackKingMovedToggle = document.getElementById('hasBlackKingMovedToggle');
+    const hasBlackRookKingSideMovedToggle = document.getElementById('hasBlackRookKingSideMovedToggle');
+    const hasBlackRookQueenSideMovedToggle = document.getElementById('hasBlackRookQueenSideMovedToggle');
+
     let currentPosition = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     let currentTurn = 'w';
     let moves = [];
@@ -26,7 +34,66 @@ document.addEventListener('DOMContentLoaded', () => {
     setupModeCheckbox.addEventListener('change', (e) => {
         setupMode = e.target.checked;
         console.log('Setup mode:', setupMode);
+
+        if (setupMode) {
+            moves = [];
+            document.getElementById('pgn-output').textContent = '';
+            initializeToggles(); // Initialize the toggle states when setup mode is activated
+        }
     });
+
+    // Add event listeners to the castling toggles to update the variables and the FEN, only in setup mode
+    hasWhiteKingMovedToggle.addEventListener('change', (e) => {
+        if (setupMode) {
+            hasWhiteKingMoved = e.target.checked;
+            updateFEN(); // Update FEN whenever this toggle changes, only in setup mode
+        }
+    });
+
+    hasWhiteRookKingSideMovedToggle.addEventListener('change', (e) => {
+        if (setupMode) {
+            hasWhiteRookKingSideMoved = e.target.checked;
+            updateFEN(); // Update FEN whenever this toggle changes, only in setup mode
+        }
+    });
+
+    hasWhiteRookQueenSideMovedToggle.addEventListener('change', (e) => {
+        if (setupMode) {
+            hasWhiteRookQueenSideMoved = e.target.checked;
+            updateFEN(); // Update FEN whenever this toggle changes, only in setup mode
+        }
+    });
+
+    hasBlackKingMovedToggle.addEventListener('change', (e) => {
+        if (setupMode) {
+            hasBlackKingMoved = e.target.checked;
+            updateFEN(); // Update FEN whenever this toggle changes, only in setup mode
+        }
+    });
+
+    hasBlackRookKingSideMovedToggle.addEventListener('change', (e) => {
+        if (setupMode) {
+            hasBlackRookKingSideMoved = e.target.checked;
+            updateFEN(); // Update FEN whenever this toggle changes, only in setup mode
+        }
+    });
+
+    hasBlackRookQueenSideMovedToggle.addEventListener('change', (e) => {
+        if (setupMode) {
+            hasBlackRookQueenSideMoved = e.target.checked;
+            updateFEN(); // Update FEN whenever this toggle changes, only in setup mode
+        }
+    });
+
+    // Initialize the toggle checkboxes based on the current state of the variables
+    function initializeToggles() {
+        hasWhiteKingMovedToggle.checked = hasWhiteKingMoved;
+        hasWhiteRookKingSideMovedToggle.checked = hasWhiteRookKingSideMoved;
+        hasWhiteRookQueenSideMovedToggle.checked = hasWhiteRookQueenSideMoved;
+        hasBlackKingMovedToggle.checked = hasBlackKingMoved;
+        hasBlackRookKingSideMovedToggle.checked = hasBlackRookKingSideMoved;
+        hasBlackRookQueenSideMovedToggle.checked = hasBlackRookQueenSideMoved;
+    }
 
     const pieceImages = {
         'r': 'static/images/black_rook.png', 'n': 'static/images/black_knight.png',
@@ -837,7 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
             square.innerHTML = '';
         }
         currentPosition = '8/8/8/8/8/8/8/8 w - - 0 1';
-        updateFEN();
+        fenInput.value = currentPosition
     }
 
     function setStartingPosition() {
@@ -853,6 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
         enPassantTarget = null;
         moves = [];
         document.getElementById('pgn-output').textContent = '';
+        initializeToggles(); // Reset the toggles when setting to the starting position
         updateFEN();
     }
 
@@ -891,8 +959,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Event listener for turn selection to update FEN accordingly
-    turnSelect.addEventListener('change', updateFEN);
+    // Event listener for turn selection to update currentTurn and then update FEN, only in setup mode
+    turnSelect.addEventListener('change', (e) => {
+        if (setupMode) {
+            currentTurn = e.target.value; // Update the current turn
+            updateFEN(); // Call the FEN update function to reflect the new turn
+        }
+    });
 
     createBoard();
     setPieces(currentPosition);
