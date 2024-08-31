@@ -114,7 +114,7 @@ form {
     font-size: 16px;
 }
 
-#output {
+#output, #pgn-output {
     margin-top: 20px;
     white-space: pre-wrap;
     border: 1px solid #000;
